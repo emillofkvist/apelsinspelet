@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Apelsinspel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        h1 {
+            color: #e67e22;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background: rgba(230, 126, 34, 0.05);
+            border: 1px solid rgba(230, 126, 34, 0.3);
+            border-radius: 12px;
+            padding: 0.8rem 1.5rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            color: #ff9f43;
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .orange-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .orange-slice {
+            width: 250px;
+            height: 250px;
+            position: relative;
+            filter: drop-shadow(0 0 30px rgba(255, 159, 67, 0.4));
+            transition: filter 0.2s;
+        }
+
+        .orange-slice img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .orange-slice:active {
+            filter: drop-shadow(0 0 50px rgba(255, 159, 67, 0.7));
+        }
+
+        .click-effect {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 159, 67, 0.8);
+            animation: ripple 0.5s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .hint {
+            color: rgba(0, 0, 0, 0.3);
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .orange-container {
+                width: 240px;
+                height: 240px;
+            }
+
+            .orange-slice {
+                width: 200px;
+                height: 200px;
+            }
+
+            .stats {
+                gap: 1rem;
+            }
+
+            .stat-box {
+                padding: 0.6rem 1rem;
+            }
+
+            .stat-value {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Apelsinspelet</h1>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-label">Klick</div>
+            <div class="stat-value" id="click-count">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Varv/s</div>
+            <div class="stat-value" id="rps">0.0</div>
+        </div>
+    </div>
+
+    <div class="orange-container" id="orange-container">
+        <div class="orange-slice" id="orange">
+            <img src="https://img.freepik.com/free-photo/slice-ripe-orange-citrus-fruit-isolated-white_146671-19260.jpg" alt="Apelsinskiva" draggable="false">
+        </div>
+    </div>
+
+    <p class="hint">Klicka eller tryck på apelsinen!</p>
+
+    <script>
+        const orange = document.getElementById('orange');
+        const container = document.getElementById('orange-container');
+        const clickCountEl = document.getElementById('click-count');
+        const rpsEl = document.getElementById('rps');
+
+        let clickCount = 0;
+        let angle = 0;
+        let angularVelocity = 0;
+        let lastTime = performance.now();
+
+        const CLICK_BOOST = 1.5;
+        const DECAY_FACTOR = 0.999;
+        const MIN_VELOCITY = 0.01;
+
+        function update(now) {
+            const dt = (now - lastTime) / 16.67;
+            lastTime = now;
+
+            angle += angularVelocity * dt;
+            angularVelocity *= Math.pow(DECAY_FACTOR, dt);
+
+            if (Math.abs(angularVelocity) < MIN_VELOCITY) {
+                angularVelocity = 0;
+            }
+
+            orange.style.transform = `rotate(${angle}deg)`;
+
+            const rps = Math.abs(angularVelocity) * 60 / 360;
+            rpsEl.textContent = rps.toFixed(1);
+
+            requestAnimationFrame(update);
+        }
+
+        function handleClick(e) {
+            e.preventDefault();
+            clickCount++;
+            clickCountEl.textContent = clickCount;
+            angularVelocity += CLICK_BOOST;
+
+            const rect = container.getBoundingClientRect();
+            let x, y;
+
+            if (e.touches) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            const ripple = document.createElement('div');
+            ripple.className = 'click-effect';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            container.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 500);
+        }
+
+        container.addEventListener('click', handleClick);
+        container.addEventListener('touchstart', handleClick, { passive: false });
+
+        container.addEventListener('contextmenu', e => e.preventDefault());
+
+        requestAnimationFrame(update);
+    </script>
+</body>
+</html>
