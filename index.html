@@ -113,10 +113,103 @@
             }
         }
 
+        .timer-box {
+            margin-bottom: 1rem;
+        }
+
+        .timer-value {
+            color: #e67e22;
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        .timer-value.urgent {
+            color: #e74c3c;
+        }
+
         .hint {
             color: rgba(0, 0, 0, 0.3);
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             font-size: 0.9rem;
+        }
+
+        .leaderboard {
+            margin-top: 1.5rem;
+            width: 300px;
+            max-width: 90vw;
+        }
+
+        .leaderboard h2 {
+            color: #e67e22;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .leaderboard ol {
+            list-style: none;
+            padding: 0;
+        }
+
+        .leaderboard li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0.8rem;
+            border-bottom: 1px solid rgba(230, 126, 34, 0.15);
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        .leaderboard li .rank {
+            color: #e67e22;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .leaderboard li .score {
+            font-weight: bold;
+            color: #e67e22;
+        }
+
+        .game-over {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .game-over.visible {
+            display: flex;
+        }
+
+        .game-over p {
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .game-over input {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e67e22;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            text-align: center;
+            width: 200px;
+        }
+
+        .game-over button, .start-btn {
+            padding: 0.6rem 1.5rem;
+            background: #e67e22;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .game-over button:hover, .start-btn:hover {
+            background: #d35400;
         }
 
         @media (max-width: 480px) {
@@ -151,6 +244,10 @@
 <body>
     <h1>Apelsinspelet</h1>
 
+    <div class="timer-box">
+        <span class="timer-value" id="timer">2:00</span>
+    </div>
+
     <div class="stats">
         <div class="stat-box">
             <div class="stat-label">Klick</div>
@@ -168,22 +265,89 @@
         </div>
     </div>
 
-    <p class="hint">Klicka eller tryck på apelsinen!</p>
+    <p class="hint" id="hint">Tryck på apelsinen för att starta!</p>
+
+    <div class="game-over" id="game-over">
+        <p>Tiden är slut! Du fick <strong id="final-score">0</strong> klick!</p>
+        <input type="text" id="player-name" placeholder="Ditt namn" maxlength="20">
+        <button id="save-btn">Spara resultat</button>
+        <button class="start-btn" id="restart-btn">Spela igen</button>
+    </div>
+
+    <div class="leaderboard" id="leaderboard">
+        <h2>Topplista</h2>
+        <ol id="leaderboard-list"></ol>
+    </div>
 
     <script>
         const orange = document.getElementById('orange');
         const container = document.getElementById('orange-container');
         const clickCountEl = document.getElementById('click-count');
         const rpsEl = document.getElementById('rps');
+        const timerEl = document.getElementById('timer');
+        const hintEl = document.getElementById('hint');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+        const playerNameInput = document.getElementById('player-name');
+        const saveBtn = document.getElementById('save-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const leaderboardList = document.getElementById('leaderboard-list');
 
         let clickCount = 0;
         let angle = 0;
         let angularVelocity = 0;
         let lastTime = performance.now();
+        let gameStarted = false;
+        let gameOver = false;
+        let timeLeft = 120;
+        let timerInterval = null;
 
         const CLICK_BOOST = 1.5;
         const DECAY_FACTOR = 0.999;
         const MIN_VELOCITY = 0.01;
+        const GAME_DURATION = 120;
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = formatTime(timeLeft);
+                if (timeLeft <= 10) timerEl.classList.add('urgent');
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameOver = true;
+            finalScoreEl.textContent = clickCount;
+            gameOverEl.classList.add('visible');
+            hintEl.style.display = 'none';
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            clickCount = 0;
+            angle = 0;
+            angularVelocity = 0;
+            timeLeft = GAME_DURATION;
+            gameStarted = false;
+            gameOver = false;
+            clickCountEl.textContent = '0';
+            rpsEl.textContent = '0.0';
+            timerEl.textContent = formatTime(GAME_DURATION);
+            timerEl.classList.remove('urgent');
+            gameOverEl.classList.remove('visible');
+            hintEl.style.display = '';
+            hintEl.textContent = 'Tryck på apelsinen för att starta!';
+            img.style.filter = '';
+            orange.style.transform = '';
+        }
 
         function update(now) {
             const dt = (now - lastTime) / 16.67;
@@ -228,8 +392,51 @@
             img.style.filter = `hue-rotate(${milestone.hue}deg) saturate(${milestone.saturate}) brightness(${milestone.brightness})`;
         }
 
+        function getLeaderboard() {
+            return JSON.parse(localStorage.getItem('apelsin-leaderboard') || '[]');
+        }
+
+        function saveLeaderboard(board) {
+            localStorage.setItem('apelsin-leaderboard', JSON.stringify(board));
+        }
+
+        function renderLeaderboard() {
+            const board = getLeaderboard();
+            leaderboardList.innerHTML = '';
+            board.slice(0, 10).forEach((entry, i) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span><span class="rank">#${i + 1}</span> ${entry.name}</span><span class="score">${entry.score} klick</span>`;
+                leaderboardList.appendChild(li);
+            });
+        }
+
+        saveBtn.addEventListener('click', () => {
+            const name = playerNameInput.value.trim() || 'Anonym';
+            const board = getLeaderboard();
+            board.push({ name, score: clickCount });
+            board.sort((a, b) => b.score - a.score);
+            saveLeaderboard(board.slice(0, 10));
+            renderLeaderboard();
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Sparat!';
+        });
+
+        restartBtn.addEventListener('click', () => {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Spara resultat';
+            resetGame();
+        });
+
         function handleClick(e) {
             e.preventDefault();
+            if (gameOver) return;
+
+            if (!gameStarted) {
+                gameStarted = true;
+                hintEl.textContent = 'Tryck så fort du kan på apelsinen!';
+                startTimer();
+            }
+
             clickCount++;
             clickCountEl.textContent = clickCount;
             angularVelocity += CLICK_BOOST;
@@ -261,9 +468,9 @@
 
         container.addEventListener('click', handleClick);
         container.addEventListener('touchstart', handleClick, { passive: false });
-
         container.addEventListener('contextmenu', e => e.preventDefault());
 
+        renderLeaderboard();
         requestAnimationFrame(update);
     </script>
 </body>
