@@ -81,6 +81,11 @@
             height: 100%;
             object-fit: contain;
             pointer-events: none;
+            transition: filter 0.5s ease, transform 0.25s ease;
+        }
+
+        .orange-slice img.pop {
+            transform: scale(1.4);
         }
 
         .orange-slice:active {
@@ -199,11 +204,41 @@
             requestAnimationFrame(update);
         }
 
+        const colorMilestones = [
+            { at: 0,   hue: 0,   saturate: 1,   brightness: 1   },
+            { at: 100, hue: 90,  saturate: 1.5, brightness: 1   },
+            { at: 200, hue: 210, saturate: 1.5, brightness: 1   },
+            { at: 300, hue: 270, saturate: 1.5, brightness: 1   },
+            { at: 400, hue: 330, saturate: 1.8, brightness: 1   },
+            { at: 500, hue: 180, saturate: 1.5, brightness: 1   },
+            { at: 600, hue: 50,  saturate: 2,   brightness: 1.2 },
+            { at: 700, hue: 0,   saturate: 3,   brightness: 0.5 },
+            { at: 800, hue: 160, saturate: 2,   brightness: 1.3 },
+            { at: 900, hue: 0,   saturate: 0,   brightness: 3   },
+            { at: 1000, hue: 0,  saturate: 5,   brightness: 1   },
+        ];
+
+        const img = orange.querySelector('img');
+
+        function updateColor() {
+            let milestone = colorMilestones[0];
+            for (const m of colorMilestones) {
+                if (clickCount >= m.at) milestone = m;
+            }
+            img.style.filter = `hue-rotate(${milestone.hue}deg) saturate(${milestone.saturate}) brightness(${milestone.brightness})`;
+        }
+
         function handleClick(e) {
             e.preventDefault();
             clickCount++;
             clickCountEl.textContent = clickCount;
             angularVelocity += CLICK_BOOST;
+            updateColor();
+
+            if (clickCount % 100 === 0) {
+                img.classList.add('pop');
+                setTimeout(() => img.classList.remove('pop'), 500);
+            }
 
             const rect = container.getBoundingClientRect();
             let x, y;
