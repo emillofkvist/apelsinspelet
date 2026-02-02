@@ -392,32 +392,51 @@
             img.style.filter = `hue-rotate(${milestone.hue}deg) saturate(${milestone.saturate}) brightness(${milestone.brightness})`;
         }
 
-        function getLeaderboard() {
-            return JSON.parse(localStorage.getItem('apelsin-leaderboard') || '[]');
+        // Firebase-konfiguration
+        const FIREBASE_URL = 'https://apelsinspelet-default-rtdb.europe-west1.firebasedatabase.app';
+
+        async function getLeaderboard() {
+            try {
+                const res = await fetch(`${FIREBASE_URL}/leaderboard.json`);
+                const data = await res.json();
+                if (!data) return [];
+                const board = Object.values(data);
+                board.sort((a, b) => b.score - a.score);
+                return board.slice(0, 10);
+            } catch (e) {
+                console.error('Kunde inte hämta topplistan:', e);
+                return [];
+            }
         }
 
-        function saveLeaderboard(board) {
-            localStorage.setItem('apelsin-leaderboard', JSON.stringify(board));
+        async function saveScore(name, score) {
+            try {
+                await fetch(`${FIREBASE_URL}/leaderboard.json`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, score, timestamp: Date.now() })
+                });
+            } catch (e) {
+                console.error('Kunde inte spara resultat:', e);
+            }
         }
 
-        function renderLeaderboard() {
-            const board = getLeaderboard();
+        async function renderLeaderboard() {
+            const board = await getLeaderboard();
             leaderboardList.innerHTML = '';
-            board.slice(0, 10).forEach((entry, i) => {
+            board.forEach((entry, i) => {
                 const li = document.createElement('li');
                 li.innerHTML = `<span><span class="rank">#${i + 1}</span> ${entry.name}</span><span class="score">${entry.score} klick</span>`;
                 leaderboardList.appendChild(li);
             });
         }
 
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
             const name = playerNameInput.value.trim() || 'Anonym';
-            const board = getLeaderboard();
-            board.push({ name, score: clickCount });
-            board.sort((a, b) => b.score - a.score);
-            saveLeaderboard(board.slice(0, 10));
-            renderLeaderboard();
             saveBtn.disabled = true;
+            saveBtn.textContent = 'Sparar...';
+            await saveScore(name, clickCount);
+            await renderLeaderboard();
             saveBtn.textContent = 'Sparat!';
         });
 
